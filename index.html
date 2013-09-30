@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Nationalratswahl 2013 - Correlate the hell out of it</title>
+<meta charset="utf-8"/>
+<link href='http://fonts.googleapis.com/css?family=Voces' rel='stylesheet' type='text/css'>
+<style>
+body { font-family: voces; }
+circle.wk {
+  stroke: #000;
+  stroke-width: 1px;
+  opacity: 0.5;
+  }
+g.axis > path {
+  fill: none;
+  }
+g.axis > .tick {
+  stroke-width: 1px;
+  stroke: #000;
+  }
+
+.content {
+  width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  }
+
+switch body > div{
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  }
+</style>
+<body>
+<div class="content">
+<h1>Wahlen - a nerdseye view</h1>
+<select class="partyselect" id="p1"></select>
+<span class="vs">VS</span>
+<select class="partyselect" id="p2"></select>
+<div id="graph">
+</div>
+
+<p>
+Was haben Globasniz in und der Alsergrund gemeinsam? Beide haben gleich
+wenig ÖVP und gleich viel Grün gewählt! Die Tage nach der Wahl sind voll
+von Karten und Analysen. Welche Orte ähnlich wählen, wird jedoch kaum
+beachtet.</p>
+
+<p>
+Die Visualisierung erlaubt die Selektion zweier Parteien und zeigt dann,
+wie an welchen Orten die Parteien wie gewählt wurden. So werden gewisse
+Parteien gegensätzlich gewählt (z.b. Wo viel FPÖ gewählt wird, wird eher
+weniger Grün gewählt) - und einige Parteien ähnlich, z.b. NEOS und Grüne
+sind in ähnlichen Ortschaften stark. Interessant dabei sind besonders die
+Ausreisser: z.b. einige Orte in der Steiermark, wo auch die Grünen
+Protestpartei sind. 
+</p>
+<script src="vendor/js/d3.v3.min.js"></script>
+<script src="vendor/js/underscore-min.js"></script>
+<script>
+d3.csv("Cleaned-20130929-2250.csv", function(raw) {
+  var width=700;
+  var height=500;
+  var maxr=20;
+
+  colors=d3.scale.category10();
+
+  var parties=["SPÖ", "ÖVP", "FPÖ", "GRÜNE", "FRANK", "NEOS", "KPÖ",
+  "PIRAT","Ungültige","Abgegebene"]
+  svg=d3.select("#graph")
+    .append("svg")
+    .attr("width",width)
+    .attr("height",height);
+  
+  ps=d3.selectAll(".partyselect")
+
+  ps.selectAll("option")
+    .data(parties)
+    .enter()
+    .append("option")
+    .text(function(d) {return d});
+
+  ps.on("change",function() {
+    p1=d3.select("#p1")[0][0].value;
+    p2=d3.select("#p2")[0][0].value;
+    display(p1,p2);
+    })
+
+
+  data=_.map(raw, function(x) {
+    r={"Bundesland":x.Bundesland,
+      "Gebietsname":x.Gebietsname,
+      "id":x.N1309,
+      "Wahlberechtigte":parseInt(x.Wahlberechtigte)
+      };
+
+    _.each(parties,function(p) {
+      r[p]=x[p]/x["Wahlberechtigte"]*100;
+      })
+    return r  
+    })
+  console.log(data)
+
+  max=_.max(_.map(data,function(x) {return _.max(_.reduce(parties ,function(y,z) {
+    y.push(x[z])
+    return y}, []))}))
+  
+  maxwb=_.max(_.map(data,function(x) { return x.Wahlberechtigte }));
+
+
+  rscale=d3.scale.sqrt()
+    .domain([0,maxwb])
+    .range([2,maxr])
+  
+  display=function(p1,p2) {
+    maxx=_.max(_.map(data,function(x) { 
+      return x[p1]}))
+
+    maxy=_.max(_.map(data,function(x) { 
+      return x[p2]}))
+
+    xscale=d3.scale.linear()
+      .domain([0,maxx])
+      .range([40,height-40]);
+    yscale=d3.scale.linear()
+      .domain([0,maxy])
+      .range([height-40,40]);
+    
+    // clean canvas
+    svg.selectAll("g").remove(); 
+
+    g=svg.append("g")
+      .attr("class","scatter")
+
+    g.selectAll("circle.wk")
+      .data(data)
+      .enter()
+      .append("circle")
+      .attr("class","wk")
+      .attr("cx",function(d) {
+       return xscale(d[p1])
+       })
+      .attr("cy",function(d) {
+        return yscale(d[p2])
+       })
+      .attr("r",function(d) {
+        return rscale(d.Wahlberechtigte)})
+      .attr("style",function(d) {
+        return "fill: "+colors(d.Bundesland)})
+      .on("mouseover",function(d) {
+        y=yscale(d[p2])
+        if (y+150 > height) {
+          y=height-150;
+          }
+        svg.append("switch")
+          .attr("id",d.id)
+          .append("foreignObject")
+          .attr("x",xscale(d[p1]))
+          .attr("y",y)
+          .attr("width",200)
+          .attr("height",200)
+          .attr("rx",10)
+          .attr("ry",10)
+          .append("xhtml:body")
+          .html("<div>"+
+                "<div>"+
+                d.Gebietsname+", "+d.Bundesland+
+                "</div><div>"+
+                p1 + ": "+d[p1].toFixed(2)+"%"+
+                "</div><div>"+
+                p2 + ": "+d[p2].toFixed(2)+"%"+
+                "</div>"+
+                "</div>");
+            
+
+          })  
+      .on("mouseout",function(d) {
+          d3.select("#"+d.id).remove(); 
+          })  
+      
+      xaxis=d3.svg.axis()
+        .scale(xscale)
+        .orient("bottom")
+        .ticks(5)
+
+      yaxis=d3.svg.axis()
+        .scale(yscale)
+        .orient("left")
+        .ticks(5)
+
+      svg.append("g")
+        .attr("class","axis")
+        .attr("transform","translate(0,"+(height-40)+")")
+        .call(xaxis)
+        .append("text")
+        .text(p1)
+        .attr("x",height/2)
+        .attr("y",35)
+        .attr("text-anchor","center")
+
+      svg.append("g")
+        .attr("class","axis")
+        .attr("transform","translate(40,0)")
+        .call(yaxis)
+        .append("text")
+        .text(p2)
+        .attr("text-anchor","center")
+        .attr("transform","translate(-40,"+height/2+") rotate(90)")
+        }
+  display("GRÜNE","NEOS");
+  })
+  
+</script>
+
+
+</body>
