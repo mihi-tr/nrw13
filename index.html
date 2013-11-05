@@ -157,7 +157,6 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
         return yscale(d[p2])
        })
       .attr("r",function(d) {
-        console.log(d);
         return rscale(d.Abgegebene)})
       .attr("style",function(d) {
         return "fill: "+colors(d.Bundesland)})
