@@ -39,6 +39,7 @@ switch body > div{
   color: white;
   padding: 10px;
   border-radius: 10px;
+  font-size: 70%;
   }
 </style>
 <body>
@@ -48,26 +49,24 @@ switch body > div{
 <a href="index.html">Scatterplot</a>
 <a href="wahlland.html">Wahlland</a>
 </div>
-<select class="partyselect" id="p1"></select>
-<span class="vs">VS</span>
-<select class="partyselect" id="p2"></select>
 <div id="graph">
 </div>
 
 <p>
-Was haben Globasniz in und der Alsergrund gemeinsam? Beide haben gleich
-wenig ÖVP und gleich viel Grün gewählt! Die Tage nach der Wahl sind voll
-von Karten und Analysen. Welche Orte ähnlich wählen, wird jedoch kaum
-beachtet.</p>
+Welche Österreichischen Gemeinden haben bei den Nationalratswahlen ähnlich
+gewählt. Wie würde das Land aussehen, wenn die Gemeinden, die ähnlich
+gewählt haben nahe aneinander liegen?
+</p>
 
 <p>
-Die Visualisierung erlaubt die Selektion zweier Parteien und zeigt dann,
-wie an welchen Orten die Parteien wie gewählt wurden. So werden gewisse
-Parteien gegensätzlich gewählt (z.b. Wo viel FPÖ gewählt wird, wird eher
-weniger Grün gewählt) - und einige Parteien ähnlich, z.b. NEOS und Grüne
-sind in ähnlichen Ortschaften stark. Interessant dabei sind besonders die
-Ausreisser: z.b. einige Orte in der Steiermark, wo auch die Grünen
-Protestpartei sind.
+Die Visualisierung legt Gemeinden, die vom Wahlverhalten ähnlich sind näher
+zueinander. Diese Art der Darstellung wurde von <a
+href="http://well-formed-data.net/archives/955/mapping-electionland">Moritz
+Stefaner für
+Deutschland</a> erdacht, hier ist eine daran angelehnte Version für
+Österreich.
+Die jeweils stimmenstärkste Partei bestimmt dabei die Farbe, die die
+Gemeinde bekommt. Die abgegebenen Stimmen die Grösse des Kreises.
 </p>
 
 <p>Built with <a
@@ -75,16 +74,26 @@ href="http://www.data.gv.at/2013/09/29/ergebnisse-der-nationalratswahl-2013-als-
 <script src="vendor/js/d3.v3.min.js"></script>
 <script src="vendor/js/underscore-min.js"></script>
 <script>
-d3.csv("Cleaned-20131016-1525.csv", function(raw) {
+d3.csv("mds.csv", function(raw) {
   var width=700;
   var height=700;
   var maxr=20;
 
   colors=d3.scale.category10();
 
-  var parties=["SPÖ", "ÖVP", "FPÖ", "GRÜNE", "FRANK", "NEOS", "KPÖ",
-  "PIRAT","Ungültige"]
+  var parties=["SPÖ", "ÖVP", "FPÖ", "GRÜNE", "FRANK", "BZÖ","NEOS", "KPÖ",
+  "PIRAT","Ungültige","Sonstige"]
 
+  pcolors=function() {
+      pc=["#FF0000","#000000","#0000FF","#008000","#FFD700","#FFa500","#FF007f","#880000","#4C2582","#FFFFFF","#808080"]
+      pcs={}
+      _.each(parties,function(d,i) {
+        pcs[d]=pc[i]
+        })
+      return function(p) { return pcs[p] }
+    }()
+  
+  console.log(pcolors("SPÖ"))
   svg=d3.select("#graph")
     .append("svg")
     .attr("viewbox",[0,0,width,height].join(" "))
@@ -110,7 +119,9 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
       "Gebietsname":x.Gebietsname,
       "id":x.N1309,
       "Wahlberechtigte":parseInt(x.Wahlberechtigte),
-      "Abgegebene":parseInt(x.Abgegebene)
+      "Abgegebene":parseInt(x.Abgegebene),
+      "x":parseFloat(x.x),
+      "y":parseFloat(x.y)
       };
 
     _.each(parties,function(p) {
@@ -120,10 +131,6 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
     })
   console.log(data)
 
-  max=_.max(_.map(data,function(x) {return _.max(_.reduce(parties ,function(y,z) {
-    y.push(x[z])
-    return y}, []))}))
-  
   maxwb=_.max(_.map(data,function(x) { return x.Abgegebene }));
 
 
@@ -131,53 +138,53 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
     .domain([0,maxwb])
     .range([2,maxr])
   
-  display=function(p1,p2) {
-    maxx=_.max(_.map(data,function(x) { 
-      return x[p1]}))
+  display=function() {
+    maxx=_.max(_.pluck(data,"x"))
+    minx=_.min(_.pluck(data,"x"))
 
-    maxy=_.max(_.map(data,function(x) { 
-      return x[p2]}))
+    maxy=_.max(_.pluck(data,"y"))
+    miny=_.min(_.pluck(data,"y"))
 
     xscale=d3.scale.linear()
-      .domain([0,maxx])
+      .domain([minx,maxx])
       .range([40,height-40]);
     yscale=d3.scale.linear()
-      .domain([0,maxy])
+      .domain([miny,maxy])
       .range([height-40,40]);
     
     // clean canvas
     svg.selectAll("g").remove(); 
 
-    g=svg.append("g")
-      .attr("class","scatter")
-
-    g.selectAll("circle.wk")
+    g=svg.selectAll("g.scatter")
       .data(data)
       .enter()
-      .append("circle")
+      .append("g")
+      .attr("class","scatter")
+      .attr("transform",function(d) { return "translate("+[xscale(d.x),yscale(d.y)]+")" })
+
+    g.append("circle")
       .attr("class","wk")
-      .attr("cx",function(d) {
-       return xscale(d[p1])
-       })
-      .attr("cy",function(d) {
-        return yscale(d[p2])
-       })
-      .attr("r",function(d) {
-        return rscale(d.Abgegebene)})
+      .attr("cx",0)
+      .attr("cy",0)
+      .attr("r",function(d) { return rscale(d.Abgegebene)} )
       .attr("style",function(d) {
-        return "fill: "+colors(d.Bundesland)})
+        p=_.max(_.map(parties,function(x) {
+          return {name: x, value: d[x]}}),
+            function(x) {
+              return x.value }).name;
+        return "fill: "+pcolors(p); })
       .on("mouseover",function(d) {
-        y=yscale(d[p2])
-        if (y+150 > height) {
-          y=height-150;
+        y=yscale(d["y"])
+        if (y+220 > height) {
+          y=height-220;
           }
         svg.append("switch")
           .attr("id",d.id)
           .append("foreignObject")
-          .attr("x",xscale(d[p1]))
+          .attr("x",xscale(d["x"]))
           .attr("y",y)
           .attr("width",200)
-          .attr("height",200)
+          .attr("height",220)
           .attr("rx",10)
           .attr("ry",10)
           .append("xhtml:body")
@@ -185,9 +192,9 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
                 "<div>"+
                 d.Gebietsname+", "+d.Bundesland+
                 "</div><div>"+
-                p1 + ": "+d[p1].toFixed(2)+"%"+
-                "</div><div>"+
-                p2 + ": "+d[p2].toFixed(2)+"%"+
+                _.map(parties,function(x) {
+                  return ( x+ ": "+d[x].toFixed(2)+"%")
+                  }).join("</div><div>")+
                 "</div>"+
                 "</div>");
             
@@ -197,36 +204,8 @@ d3.csv("Cleaned-20131016-1525.csv", function(raw) {
           d3.select("#"+d.id).remove(); 
           })  
       
-      xaxis=d3.svg.axis()
-        .scale(xscale)
-        .orient("bottom")
-        .ticks(5)
-
-      yaxis=d3.svg.axis()
-        .scale(yscale)
-        .orient("left")
-        .ticks(5)
-
-      svg.append("g")
-        .attr("class","axis")
-        .attr("transform","translate(0,"+(height-40)+")")
-        .call(xaxis)
-        .append("text")
-        .text(p1)
-        .attr("x",height/2)
-        .attr("y",35)
-        .attr("text-anchor","center")
-
-      svg.append("g")
-        .attr("class","axis")
-        .attr("transform","translate(40,0)")
-        .call(yaxis)
-        .append("text")
-        .text(p2)
-        .attr("text-anchor","center")
-        .attr("transform","translate(-40,"+height/2+") rotate(90)")
         }
-  display("GRÜNE","NEOS");
+  display();
   })
   
 </script>
