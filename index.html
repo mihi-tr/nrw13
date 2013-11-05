@@ -70,7 +70,7 @@ href="http://www.data.gv.at/2013/09/29/ergebnisse-der-nationalratswahl-2013-als-
 <script src="vendor/js/d3.v3.min.js"></script>
 <script src="vendor/js/underscore-min.js"></script>
 <script>
-d3.csv("Cleaned-20130929-2250.csv", function(raw) {
+d3.csv("Cleaned-20131016-1525.csv", function(raw) {
   var width=700;
   var height=500;
   var maxr=20;
@@ -78,7 +78,7 @@ d3.csv("Cleaned-20130929-2250.csv", function(raw) {
   colors=d3.scale.category10();
 
   var parties=["SPÖ", "ÖVP", "FPÖ", "GRÜNE", "FRANK", "NEOS", "KPÖ",
-  "PIRAT","Ungültige","Abgegebene"]
+  "PIRAT","Ungültige"]
   svg=d3.select("#graph")
     .append("svg")
     .attr("width",width)
@@ -103,11 +103,12 @@ d3.csv("Cleaned-20130929-2250.csv", function(raw) {
     r={"Bundesland":x.Bundesland,
       "Gebietsname":x.Gebietsname,
       "id":x.N1309,
-      "Wahlberechtigte":parseInt(x.Wahlberechtigte)
+      "Wahlberechtigte":parseInt(x.Wahlberechtigte),
+      "Abgegebene":parseInt(x.Abgegebene)
       };
 
     _.each(parties,function(p) {
-      r[p]=x[p]/x["Wahlberechtigte"]*100;
+      r[p]=x[p]/x["Abgegebene"]*100;
       })
     return r  
     })
@@ -117,7 +118,7 @@ d3.csv("Cleaned-20130929-2250.csv", function(raw) {
     y.push(x[z])
     return y}, []))}))
   
-  maxwb=_.max(_.map(data,function(x) { return x.Wahlberechtigte }));
+  maxwb=_.max(_.map(data,function(x) { return x.Abgegebene }));
 
 
   rscale=d3.scale.sqrt()
@@ -156,7 +157,8 @@ d3.csv("Cleaned-20130929-2250.csv", function(raw) {
         return yscale(d[p2])
        })
       .attr("r",function(d) {
-        return rscale(d.Wahlberechtigte)})
+        console.log(d);
+        return rscale(d.Abgegebene)})
       .attr("style",function(d) {
         return "fill: "+colors(d.Bundesland)})
       .on("mouseover",function(d) {
