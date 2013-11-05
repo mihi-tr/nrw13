@@ -28,6 +28,13 @@ g.axis > .tick {
   stroke: #000;
   }
 
+g.scatter > path {
+  opacity: 0.7;
+  }
+g.scatter:hover > path {
+  opacity: 1;
+  }
+
 .content {
   width: auto;
   margin-left: auto;
@@ -136,7 +143,7 @@ d3.csv("mds.csv", function(raw) {
 
   rscale=d3.scale.sqrt()
     .domain([0,maxwb])
-    .range([2,maxr])
+    .range([5,maxr])
   
   display=function() {
     maxx=_.max(_.pluck(data,"x"))
@@ -161,19 +168,37 @@ d3.csv("mds.csv", function(raw) {
       .append("g")
       .attr("class","scatter")
       .attr("transform",function(d) { return "translate("+[xscale(d.x),yscale(d.y)]+")" })
+    
+      
+      var prepare_arcs=function(d) {
+        s=_.map(parties,function(x) {
+          return {name: x, value: d[x]/100.0 }});
+        s=_.sortBy(s,function(x) { return -x.value });
+        var sa=0;
+        _.each(s, function(i) {
+          i.sa=sa;
+          i.ea=sa+2*Math.PI*i.value;
+          sa=i.ea;
+          i.Abgegebene=d.Abgegebene;
+          })
+        return s  
+          }
+      
+      arc=d3.svg.arc()
+        .innerRadius(0)
+        .outerRadius(function(d) { return rscale(d.Abgegebene) })
+        .startAngle(function(d) { return d.sa })
+        .endAngle(function(d) { return d.ea });
 
-    g.append("circle")
-      .attr("class","wk")
-      .attr("cx",0)
-      .attr("cy",0)
-      .attr("r",function(d) { return rscale(d.Abgegebene)} )
-      .attr("style",function(d) {
-        p=_.max(_.map(parties,function(x) {
-          return {name: x, value: d[x]}}),
-            function(x) {
-              return x.value }).name;
-        return "fill: "+pcolors(p); })
-      .on("mouseover",function(d) {
+      g.selectAll("path")
+        .data(function(d){return prepare_arcs(d) })
+        .enter()
+        .append("path")
+        .attr("d",arc)
+        .attr("fill",function(d) { return pcolors(d.name) });
+
+      
+      g.on("mouseover",function(d) {
         y=yscale(d["y"])
         if (y+220 > height) {
           y=height-220;
