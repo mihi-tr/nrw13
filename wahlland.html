@@ -93,27 +93,11 @@ d3.csv("mds.csv", function(raw) {
       return function(p) { return pcs[p] }
     }()
   
-  console.log(pcolors("SPÖ"))
   svg=d3.select("#graph")
     .append("svg")
     .attr("viewbox",[0,0,width,height].join(" "))
     .attr("preserveAspectRatio","xMinYMin meet");
   
-  ps=d3.selectAll(".partyselect")
-
-  ps.selectAll("option")
-    .data(parties)
-    .enter()
-    .append("option")
-    .text(function(d) {return d});
-
-  ps.on("change",function() {
-    p1=d3.select("#p1")[0][0].value;
-    p2=d3.select("#p2")[0][0].value;
-    display(p1,p2);
-    })
-
-
   data=_.map(raw, function(x) {
     r={"Bundesland":x.Bundesland,
       "Gebietsname":x.Gebietsname,
